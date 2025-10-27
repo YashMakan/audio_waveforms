@@ -234,18 +234,13 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
 
     // Load waveform data
     if (widget.waveformData.isNotEmpty) {
-      _addWaveformData(widget.waveformData);
+      _setWaveform(widget.waveformData);
     } else {
-      if (waveformExtraction.waveformData.isNotEmpty) {
-        _addWaveformData(waveformExtraction.waveformData);
-      }
-      if (!widget.continuousWaveform) {
-        playerController.addListener(_addWaveformDataFromController);
-      } else {
-        onCurrentExtractedWaveformData = waveformExtraction
-            .onCurrentExtractedWaveformData
-            .listen(_addWaveformData);
-      }
+      final data = widget.playerController.waveformExtraction.waveformData;
+      if (data.isNotEmpty) _setWaveform(data);
+      _waveformSub = widget.playerController.waveformExtraction
+          .onCurrentExtractedWaveformData
+          .listen(_setWaveform);
     }
   }
 
@@ -305,7 +300,7 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
                   painter: PlayerWavePainter(
                     playerWaveStyle: playerWaveStyle,
                     waveformData: _waveformData,
-                    animValue: _growAnimationProgress,
+                    animValue: _animGrowValue,
                     totalBackDistance: _totalBackDistance,
                     dragOffset: _dragOffset,
                     audioProgress: _animProgressValue,
