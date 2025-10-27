@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../audio_waveforms.dart';
 import 'base/wave_clipper.dart';
@@ -154,14 +155,14 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
   WaveformExtractionController get waveformExtraction =>
       playerController.waveformExtraction;
 
+  late final Ticker _frameTicker;
+
   @override
   void initState() {
     super.initState();
     _initialiseVariables();
 
-    _frameTicker = AnimationController.unbounded(vsync: this)
-      ..addListener(_onFrameTick)
-      ..repeat(min: 0, max: 1); // run continuously at screen refresh rate
+    _frameTicker = createTicker((_) => _onFrameTick())..start();
 
     onCurrentDurationSubscription =
         playerController.onCurrentDurationChanged.listen((event) {
@@ -242,7 +243,6 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
   }
 
   double _audioProgress = 0.0;
-  late AnimationController _frameTicker; // new ticker for smooth frames
   double _displayProgress = 0.0; // interpolated visual progress
   double _targetProgress = 0.0; // latest progress from native
   double _velocity = 0.0;
