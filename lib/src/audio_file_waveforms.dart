@@ -125,11 +125,27 @@ class AudioFileWaveforms extends StatefulWidget {
 
 class _AudioFileWaveformsState extends State<AudioFileWaveforms>
     with SingleTickerProviderStateMixin {
-  late AnimationController _growingWaveController;
-  late Animation<double> _growAnimation;
+  late final AnimationController _growingWaveController;
+  late final Animation<double> _growAnimation;
 
   double _growAnimationProgress = 0.0;
   final ValueNotifier<int> _seekProgress = ValueNotifier(0);
+
+  bool _isScrolled = false;
+  double _audioProgress = 0.0;
+  double _cachedAudioProgress = 0.0;
+  double scrollScale = 1.0;
+  double _proportion = 0.0;
+
+  Offset _totalBackDistance = Offset.zero;
+  Offset _dragOffset = Offset.zero;
+
+  final List<double> _waveformData = [];
+
+  late StreamSubscription<int> _durationSub;
+  StreamSubscription<List<double>>? _waveformSub;
+  StreamSubscription<void>? _onCompleteSub;
+
   bool showSeekLine = false;
 
   late EdgeInsets? margin;
@@ -155,14 +171,10 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
   WaveformExtractionController get waveformExtraction =>
       playerController.waveformExtraction;
 
-  late final Ticker _frameTicker;
-
   @override
   void initState() {
     super.initState();
     _initialiseVariables();
-
-    _frameTicker = createTicker((_) => _onFrameTick())..start();
 
     onCurrentDurationSubscription =
         playerController.onCurrentDurationChanged.listen((event) {
@@ -181,7 +193,10 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
     _growAnimation = CurvedAnimation(
       parent: _growingWaveController,
       curve: widget.animationCurve,
-    );
+    )..addListener(() {
+      // Instead of setState(), use value to trigger lightweight repaint
+      _growAnimationProgress = _growAnimation.value;
+    });
 
     _growingWaveController
       ..forward()
@@ -212,24 +227,6 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
     }
   }
 
-  void _onFrameTick() {
-    // simple spring-like interpolation (ease toward target)
-    final diff = _targetProgress - _displayProgress;
-    _velocity += diff * 0.25; // tension
-    _velocity *= 0.8; // damping
-    _displayProgress += _velocity;
-
-    // avoid drift
-    if ((_displayProgress - _targetProgress).abs() < 0.0005) {
-      _displayProgress = _targetProgress;
-      _velocity = 0;
-    }
-
-    if (mounted) setState(() {
-      _audioProgress = _displayProgress.clamp(0.0, 1.0);
-    });
-  }
-
 
   @override
   void dispose() {
@@ -238,28 +235,17 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
     onCompletionSubscription.cancel();
     playerController.removeListener(_addWaveformDataFromController);
     _growingWaveController.dispose();
-    _frameTicker.dispose();
+    _durationSub.cancel();
+    _waveformSub?.cancel();
+    _onCompleteSub?.cancel();
+    _seekProgress.dispose();
     super.dispose();
   }
 
-  double _audioProgress = 0.0;
-  double _displayProgress = 0.0; // interpolated visual progress
-  double _targetProgress = 0.0; // latest progress from native
-  double _velocity = 0.0;
-
-  double _cachedAudioProgress = 0.0;
-
-  Offset _totalBackDistance = Offset.zero;
-  Offset _dragOffset = Offset.zero;
 
   double _initialDragPosition = 0.0;
   double _scrollDirection = 0.0;
 
-  bool _isScrolled = false;
-  double scrollScale = 1.0;
-  double _proportion = 0.0;
-
-  final List<double> _waveformData = [];
 
   @override
   Widget build(BuildContext context) {
