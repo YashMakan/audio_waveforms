@@ -92,11 +92,29 @@ class PlayerWavePainter extends CustomPainter {
 
       // Only draw waves which are in visible viewport.
       if (dx > 0 && dx < halfWidth * 2) {
-        canvas.drawLine(
-          Offset(dx, bottomDy),
-          Offset(dx, topDy),
-          i < audioProgress * length ? liveWavePaint : fixedWavePaint,
-        );
+        final liveThreshold = audioProgress * length;
+        final dist = (i - liveThreshold).abs();
+
+        if (dist < 1) {
+          // near the boundary, blend colors for smoother edge
+          final t = 1.0 - dist;
+          final blended = Color.lerp(
+            playerWaveStyle.liveWaveColor,
+            playerWaveStyle.fixedWaveColor,
+            t,
+          )!;
+          final fadePaint = Paint()
+            ..color = blended
+            ..strokeWidth = playerWaveStyle.waveThickness
+            ..strokeCap = playerWaveStyle.waveCap;
+          canvas.drawLine(Offset(dx, bottomDy), Offset(dx, topDy), fadePaint);
+        } else {
+          canvas.drawLine(
+            Offset(dx, bottomDy),
+            Offset(dx, topDy),
+            i < liveThreshold ? liveWavePaint : fixedWavePaint,
+          );
+        }
       }
     }
   }

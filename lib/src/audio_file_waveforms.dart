@@ -158,6 +158,21 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
   void initState() {
     super.initState();
     _initialiseVariables();
+
+    _frameTicker = AnimationController.unbounded(vsync: this)
+      ..addListener(_onFrameTick)
+      ..repeat(min: 0, max: 1); // run continuously at screen refresh rate
+
+    onCurrentDurationSubscription =
+        playerController.onCurrentDurationChanged.listen((event) {
+          _targetProgress =
+              event / (playerController.maxDuration == 0 ? 1 : playerController.maxDuration);
+        });
+
+    onCompletionSubscription = playerController.onCompletion.listen((_) {
+      _targetProgress = 1.0;
+    });
+
     _growingWaveController = AnimationController(
       vsync: this,
       duration: widget.animationDuration,
@@ -196,6 +211,25 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
     }
   }
 
+  void _onFrameTick() {
+    // simple spring-like interpolation (ease toward target)
+    final diff = _targetProgress - _displayProgress;
+    _velocity += diff * 0.25; // tension
+    _velocity *= 0.8; // damping
+    _displayProgress += _velocity;
+
+    // avoid drift
+    if ((_displayProgress - _targetProgress).abs() < 0.0005) {
+      _displayProgress = _targetProgress;
+      _velocity = 0;
+    }
+
+    if (mounted) setState(() {
+      _audioProgress = _displayProgress.clamp(0.0, 1.0);
+    });
+  }
+
+
   @override
   void dispose() {
     onCurrentDurationSubscription.cancel();
@@ -203,10 +237,16 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
     onCompletionSubscription.cancel();
     playerController.removeListener(_addWaveformDataFromController);
     _growingWaveController.dispose();
+    _frameTicker.dispose();
     super.dispose();
   }
 
   double _audioProgress = 0.0;
+  late AnimationController _frameTicker; // new ticker for smooth frames
+  double _displayProgress = 0.0; // interpolated visual progress
+  double _targetProgress = 0.0; // latest progress from native
+  double _velocity = 0.0;
+
   double _cachedAudioProgress = 0.0;
 
   Offset _totalBackDistance = Offset.zero;
