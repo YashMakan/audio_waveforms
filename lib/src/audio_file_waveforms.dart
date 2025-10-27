@@ -176,16 +176,6 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
     super.initState();
     _initialiseVariables();
 
-    onCurrentDurationSubscription =
-        playerController.onCurrentDurationChanged.listen((event) {
-          _targetProgress =
-              event / (playerController.maxDuration == 0 ? 1 : playerController.maxDuration);
-        });
-
-    onCompletionSubscription = playerController.onCompletion.listen((_) {
-      _targetProgress = 1.0;
-    });
-
     _growingWaveController = AnimationController(
       vsync: this,
       duration: widget.animationDuration,
