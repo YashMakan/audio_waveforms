@@ -124,7 +124,7 @@ class AudioFileWaveforms extends StatefulWidget {
 }
 
 class _AudioFileWaveformsState extends State<AudioFileWaveforms>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _growController;
   late final Animation<double> _growAnim;
 
