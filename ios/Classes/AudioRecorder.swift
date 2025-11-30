@@ -1,4 +1,5 @@
 import AVFoundation
+import AVFAudio
 import Accelerate
 
 public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
@@ -49,15 +50,20 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
         
         do {
             if recordingSettings.overrideAudioSession {
-                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, options: options)
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.playAndRecord, options: options)
 
-                if #available(iOS 17.0, *), recordingSettings.enableAudioIsolation == true {
-                    try AVAudioSession.sharedInstance().setMode(.voiceIsolation)
+                if #available(iOS 17.0, *), recordingSettings.enableAudioIsolation {
+                    if let voiceIsolation = AVAudioSession.Mode("voiceIsolation") {
+                        try session.setMode(voiceIsolation)
+                    } else {
+                        try session.setMode(.default)
+                    }
                 } else {
-                    try AVAudioSession.sharedInstance().setMode(.default)
+                    try session.setMode(.default)
                 }
 
-                try AVAudioSession.sharedInstance().setActive(true)
+                try session.setActive(true)
             }
 
             audioUrl = URL(fileURLWithPath: self.path!)
@@ -101,9 +107,7 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
         } else {
             sendResult(result, duration: Int(CMTime.zero.seconds))
         }
-        if recordingSettings.overrideAudioSession {
-            try? AVAudioSession.sharedInstance().setActive(false)
-        }
+        try? AVAudioSession.sharedInstance().setActive(false)
         audioRecorder = nil
     }
     
