@@ -28,8 +28,8 @@ class RecorderBytesStreamEngine {
         do {
             try audioEngine.start()
         } catch {
-           result(FlutterError(code: Constants.audioWaveforms, message: "Error starting Audio Engine", details: error.localizedDescription))
-        }
+              print("AudioWaveforms: Error starting Audio Engine - \(error.localizedDescription)")
+          }
     }
 
     func detach() {
