@@ -53,13 +53,9 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
                 let session = AVAudioSession.sharedInstance()
                 try session.setCategory(.playAndRecord, options: options)
 
-                if #available(iOS 17.0, *), recordingSettings.enableAudioIsolation {
-                    // iOS 17+ has native voiceIsolation mode
-                    try session.setMode(.voiceIsolation)
-                } else {
-                    try session.setMode(.default)
+                if #available(iOS 15.0, *) {
+                    try session.setCategory(.playAndRecord, mode: .voiceChat, options: options)
                 }
-
 
                 try session.setActive(true)
             }
