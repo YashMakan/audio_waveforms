@@ -15,6 +15,7 @@ class RecorderSettings {
     this.iosEncoderSettings = const IosEncoderSetting(),
     this.sampleRate = 44100,
     this.bitRate = 128000,
+    this.enableAudioIsolation = false,
   });
 
   /// Encoder settings for Android devices.
@@ -30,6 +31,9 @@ class RecorderSettings {
   /// Bit rate for encoding audio in bits per second (bps).
   /// Higher values provide better quality but larger file sizes.
   final int bitRate;
+
+  final bool enableAudioIsolation;
+
 
   /// Converts the RecorderSettings instance to a JSON map for iOS.
   Map<String, dynamic> iosToJson({
@@ -47,6 +51,7 @@ class RecorderSettings {
         Constants.linearPCMBitDepth: iosEncoderSettings.linearPCMBitDepth,
         Constants.linearPCMIsBigEndian: iosEncoderSettings.linearPCMIsBigEndian,
         Constants.linearPCMIsFloat: iosEncoderSettings.linearPCMIsFloat,
+        Constants.enableAudioIsolation: enableAudioIsolation,
       };
 
   /// Converts the RecorderSettings instance to a JSON map for Android.

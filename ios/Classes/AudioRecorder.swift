@@ -50,8 +50,16 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
         do {
             if recordingSettings.overrideAudioSession {
                 try AVAudioSession.sharedInstance().setCategory(.playAndRecord, options: options)
+
+                if #available(iOS 17.0, *), recordingSettings.enableAudioIsolation == true {
+                    try AVAudioSession.sharedInstance().setMode(.voiceIsolation)
+                } else {
+                    try AVAudioSession.sharedInstance().setMode(.default)
+                }
+
                 try AVAudioSession.sharedInstance().setActive(true)
             }
+
             audioUrl = URL(fileURLWithPath: self.path!)
             
             if(audioUrl == nil){
