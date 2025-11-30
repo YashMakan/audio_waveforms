@@ -1,13 +1,6 @@
-//
-//  RecorderBytesStreamHandler.swift
-//  audio_waveforms
-//
-//  Created by Ujas Majithiya on 10/04/25.
-//
-
 import Foundation
 import AVFAudio
-import Accelerate // <-- 1. Import the Accelerate framework
+import Accelerate
 
 class RecorderBytesStreamEngine {
     private var audioEngine = AVAudioEngine()
@@ -22,21 +15,26 @@ class RecorderBytesStreamEngine {
         let inputNode = audioEngine.inputNode
         audioFormat = inputNode.outputFormat(forBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: audioFormat) { (buffer, time) in
-            // --- 2. CALCULATE RMS (AMPLITUDE) HERE ---
             guard let channelData = buffer.floatChannelData?[0] else { return }
             let frameLength = Int(buffer.frameLength)
 
             var rms: Float = 0.0
-            // vDSP_rmsqv calculates the root mean square of a vector, which is a great way to get audio level.
             vDSP_rmsqv(channelData, 1, &rms, vDSP_Length(frameLength))
 
-            // The rms value is a linear amplitude. It's what the UI needs.
-            let linearRms = rms
+            // --- FIX STARTS HERE ---
 
-            // Convert buffer to bytes for the stream
+            // 1. Define a gain factor to amplify the raw RMS value.
+            //    You can experiment with this value. 70.0 is a good starting point.
+            let gain: Float = 70.0
+
+            // 2. Apply the gain and clamp the result to a maximum of 1.0.
+            let scaledRms = min(1.0, rms * gain)
+
+            // --- FIX ENDS HERE ---
+
             if let convertedBytes = self.convertToFlutterType(buffer) {
-                // --- 3. SEND BOTH RMS AND BYTES ---
-                self.sendToFlutter(rms: linearRms, bytes: convertedBytes)
+                // 3. Send the new 'scaledRms' value to Flutter.
+                self.sendToFlutter(rms: scaledRms, bytes: convertedBytes)
             }
         }
         do {
@@ -52,7 +50,6 @@ class RecorderBytesStreamEngine {
     }
 
     private func convertToFlutterType(_ buffer: AVAudioPCMBuffer) -> FlutterStandardTypedData? {
-        // This function is correct, no changes needed here.
         guard let channelData = buffer.floatChannelData?[0] else { return nil }
         let frameLength = Int(buffer.frameLength)
 
@@ -69,11 +66,9 @@ class RecorderBytesStreamEngine {
         return convertedBuffer
     }
 
-    // --- 4. MODIFY THE SEND FUNCTION SIGNATURE AND BODY ---
     private func sendToFlutter(rms: Float, bytes: FlutterStandardTypedData) {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            // Now we send a dictionary containing both values
             flutterChannel.invokeMethod(Constants.onAudioChunk, arguments: [
                 Constants.bytes: bytes,
                 Constants.normalisedRms: rms
