@@ -54,14 +54,12 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
                 try session.setCategory(.playAndRecord, options: options)
 
                 if #available(iOS 17.0, *), recordingSettings.enableAudioIsolation {
-                    if let isolationMode = AVAudioSession.Mode(rawValue: "voiceIsolation") {
-                        try session.setMode(isolationMode)
-                    } else {
-                        try session.setMode(.default)
-                    }
+                    // iOS 17+ has native voiceIsolation mode
+                    try session.setMode(.voiceIsolation)
                 } else {
                     try session.setMode(.default)
                 }
+
 
                 try session.setActive(true)
             }
