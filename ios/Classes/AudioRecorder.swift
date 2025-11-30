@@ -79,30 +79,32 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
     }
     
     public func stopRecording(_ result: @escaping FlutterResult) {
+        // 1. Get the duration from the recorder's `currentTime` property.
+        // This is an in-memory value and is extremely fast.
+        let duration = audioRecorder?.currentTime ?? 0.0
+
+        // 2. Stop the recorder to finalize the file.
         audioRecorder?.stop()
         bytesStreamEngine.detach()
-        if(audioUrl != nil) {
-            let asset = AVURLAsset(url:  audioUrl!)
-            
-            if #available(iOS 15.0, *) {
-                Task {
-                    do {
-                        recordedDuration = try await asset.load(.duration)
-                        sendResult(result, duration: Int(recordedDuration.seconds * 1000))
-                    } catch let err {
-                        debugPrint(err.localizedDescription)
-                        sendResult(result, duration: Int(CMTime.zero.seconds))
-                    }
-                }
-            } else {
-                recordedDuration = asset.duration
-                sendResult(result, duration: Int(recordedDuration.seconds * 1000))
-            }
-        } else {
-            sendResult(result, duration: Int(CMTime.zero.seconds))
-        }
+
+        // I'm assuming you forgot to add the overrideAudioSession check here.
+        // It's good practice to balance the setActive(true) with setActive(false).
+        // You'll need access to recordingSettings or to store this bool in a property.
+        // For now, I'll replicate your original code's behavior.
         try? AVAudioSession.sharedInstance().setActive(false)
+
+        // 4. Release the recorder instance.
         audioRecorder = nil
+
+        // 5. Send the result back immediately with the captured duration.
+        // We no longer need to load the AVURLAsset from disk, which was the slow part.
+        if(path != nil) {
+            let durationInMilliSeconds = Int(duration * 1000)
+            sendResult(result, duration: durationInMilliSeconds)
+        } else {
+            // Fallback case, similar to your original code.
+            sendResult(result, duration: 0)
+        }
     }
     
     private func sendResult(_ result: @escaping FlutterResult, duration:Int){
