@@ -54,8 +54,8 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
                 try session.setCategory(.playAndRecord, options: options)
 
                 if #available(iOS 17.0, *), recordingSettings.enableAudioIsolation {
-                    if let voiceIsolation = AVAudioSession.Mode("voiceIsolation") {
-                        try session.setMode(voiceIsolation)
+                    if let isolationMode = AVAudioSession.Mode(rawValue: "voiceIsolation") {
+                        try session.setMode(isolationMode)
                     } else {
                         try session.setMode(.default)
                     }
