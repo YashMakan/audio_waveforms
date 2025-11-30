@@ -17,6 +17,7 @@ struct Constants {
     static let bitRate = "bitRate"
     static let fileNameFormat = "YY-MM-dd-HH-mm-ss"
     static let resumeRecording = "resumeRecording"
+    static let enableAudioIsolation = "enableAudioIsolation"
 
     static let kAudioFormatMPEG4AAC = 0
     static let kAudioFormatMPEGLayer1 = 1
