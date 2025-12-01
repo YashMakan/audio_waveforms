@@ -18,23 +18,32 @@ class RecorderBytesStreamEngine {
             guard let channelData = buffer.floatChannelData?[0] else { return }
             let frameLength = Int(buffer.frameLength)
 
+            // 1. Calculate the raw RMS (linear amplitude)
             var rms: Float = 0.0
             vDSP_rmsqv(channelData, 1, &rms, vDSP_Length(frameLength))
 
-            // --- FIX STARTS HERE ---
+            // --- NEW LOGARITHMIC SCALING LOGIC ---
 
-            // 1. Define a gain factor to amplify the raw RMS value.
-            //    You can experiment with this value. 70.0 is a good starting point.
-            let gain: Float = 70.0
+            // 2. Define a lower bound for silence in decibels.
+            //    -50.0 dB is a good value for quiet environments. You can adjust this.
+            let dbReference: Float = -50.0
 
-            // 2. Apply the gain and clamp the result to a maximum of 1.0.
-            let scaledRms = min(1.0, rms * gain)
+            // 3. Convert the linear RMS to a decibel scale.
+            //    We use a small epsilon (1e-5) to prevent log(0) which is -infinity.
+            let dbValue = 20 * log10f(rms + 1e-5)
 
-            // --- FIX ENDS HERE ---
+            // 4. Normalize the decibel value to a 0.0 to 1.0 range.
+            //    This maps our `dbReference` to 0.0 and 0 dB (max level) to 1.0.
+            let normalizedLevel = (dbValue - dbReference) / -dbReference
+
+            // 5. Clamp the final value to ensure it's always between 0.0 and 1.0.
+            let finalLevel = max(0.0, min(1.0, normalizedLevel))
+
+            // --- END OF NEW LOGIC ---
 
             if let convertedBytes = self.convertToFlutterType(buffer) {
-                // 3. Send the new 'scaledRms' value to Flutter.
-                self.sendToFlutter(rms: scaledRms, bytes: convertedBytes)
+                // 6. Send the final, naturally-scaled level to Flutter.
+                self.sendToFlutter(rms: finalLevel, bytes: convertedBytes)
             }
         }
         do {
