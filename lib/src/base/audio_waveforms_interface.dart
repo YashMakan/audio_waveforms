@@ -1,5 +1,7 @@
 part of '../controllers/player_controller.dart';
 
+enum AudioOutput { speaker, earpiece }
+
 class AudioWaveformsInterface {
   AudioWaveformsInterface._();
 
@@ -81,6 +83,7 @@ class AudioWaveformsInterface {
     required int frequency,
     double? volume,
     bool overrideAudioSession = false,
+    AudioOutput audioOutput = AudioOutput.speaker,
   }) async {
     var result = await _methodChannel.invokeMethod(Constants.preparePlayer, {
       Constants.path: path,
@@ -88,6 +91,7 @@ class AudioWaveformsInterface {
       Constants.playerKey: key,
       Constants.updateFrequency: frequency,
       Constants.overrideAudioSession: overrideAudioSession,
+      Constants.audioOutput: audioOutput.index,
     });
     return result ?? false;
   }

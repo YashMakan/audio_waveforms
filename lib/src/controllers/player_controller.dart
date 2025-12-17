@@ -129,6 +129,7 @@ class PlayerController extends ChangeNotifier {
     double? volume,
     bool shouldExtractWaveform = true,
     int noOfSamples = 100,
+    AudioOutput audioOutput = AudioOutput.speaker,
   }) async {
     if (!path.startsWith('http')) {
       // Keep the full URL for remote files and strip for local files
@@ -144,6 +145,7 @@ class PlayerController extends ChangeNotifier {
       frequency: updateFrequency.value,
       volume: volume,
       overrideAudioSession: overrideAudioSession,
+      audioOutput: audioOutput,
     );
     if (isPrepared) {
       _maxDuration = await getDuration();

@@ -20,7 +20,7 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
         flutterChannel = channel
     }
     
-    func preparePlayer(path: String?, volume: Double?, updateFrequency: Int?,result: @escaping FlutterResult, overrideAudioSession : Bool) {
+    func preparePlayer(path: String?, volume: Double?, updateFrequency: Int?, result: @escaping FlutterResult, overrideAudioSession : Bool, audioOutput: Int?) {
         if(!(path ?? "").isEmpty) {
             self.updateFrequency = updateFrequency ?? 200
             let audioUrl = URL.init(string: path!)
@@ -34,14 +34,31 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
                 player = try AVAudioPlayer(contentsOf: audioUrl!)
                 do {
                     if overrideAudioSession {
-                        try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-                        try AVAudioSession.sharedInstance().setActive(true)
+                        let session = AVAudioSession.sharedInstance()
+
+                        // Default to 0 (Speaker) if null
+                        let outputType = audioOutput ?? 0
+
+                        if outputType == 1 {
+                            // EARPIECE MODE
+                            // Category: playAndRecord is required to route to the receiver (top speaker)
+                            // Mode: voiceChat optimizes for speech and defaults to receiver
+                            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [])
+                        } else {
+                            // SPEAKER MODE
+                            // Category: playback is standard for media
+                            // Mode: default
+                            // Options: defaultToSpeaker ensures it comes out the bottom
+                            try session.setCategory(.playback, mode: .default, options: .defaultToSpeaker)
+                        }
+
+                        try session.setActive(true)
                     }
                 } catch {
                     result(FlutterError(code: Constants.audioWaveforms, message: "Couldn't set audio session.", details: error.localizedDescription))
                     return
                 }
-                
+
             } catch {
                 result(FlutterError(code: Constants.audioWaveforms, message: "Failed to prepare player", details: error.localizedDescription))
                 return
