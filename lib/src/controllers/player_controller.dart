@@ -67,13 +67,6 @@ class PlayerController extends ChangeNotifier {
   /// You may use your implementation to set your preferred configurations.
   /// Changes to this property will only take effect after you call
   /// [preparePlayer].
-  ///
-  /// Setting this property to true will set the AudioSession in native
-  /// otherwise nothing happens.
-  ///
-  /// Defaults to false.
-  bool overrideAudioSession = false;
-
   /// A stream to get current state of the player. This stream
   /// will emit event whenever there is change in the playerState.
   Stream<PlayerState> get onPlayerStateChanged =>
@@ -129,6 +122,7 @@ class PlayerController extends ChangeNotifier {
     double? volume,
     bool shouldExtractWaveform = true,
     int noOfSamples = 100,
+    bool overrideAudioSession = false,
     AudioOutput audioOutput = AudioOutput.speaker,
   }) async {
     if (!path.startsWith('http')) {
