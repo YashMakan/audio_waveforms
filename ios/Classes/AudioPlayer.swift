@@ -28,46 +28,44 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
                 result(FlutterError(code: Constants.audioWaveforms, message: "Failed to initialise Url from provided audio file", details: "If path contains `file://` try removing it"))
                 return
             }
+
             do {
+                // 1. SETUP SESSION FIRST
+                if overrideAudioSession {
+                    let session = AVAudioSession.sharedInstance()
+                    let outputType = audioOutput ?? 0
+
+                    if outputType == 1 {
+                        // EARPIECE MODE
+                        // playAndRecord is required for earpiece, but we must allow Bluetooth to avoid cutting off headphones
+                        try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth])
+                    } else {
+                        // SPEAKER MODE
+                        try session.setCategory(.playback, mode: .default, options: .defaultToSpeaker)
+                    }
+
+                    // Activate session BEFORE creating the player
+                    try session.setActive(true)
+                }
+
+                // 2. STOP PREVIOUS PLAYER
                 stopPlayer()
                 player = nil
+
+                // 3. INITIALIZE PLAYER (Now it picks up the correct session settings)
                 player = try AVAudioPlayer(contentsOf: audioUrl!)
-                do {
-                    if overrideAudioSession {
-                        let session = AVAudioSession.sharedInstance()
 
-                        // Default to 0 (Speaker) if null
-                        let outputType = audioOutput ?? 0
+                player?.enableRate = true
+                player?.rate = 1.0
+                player?.volume = Float(volume ?? 1.0)
+                player?.prepareToPlay()
 
-                        if outputType == 1 {
-                            // EARPIECE MODE
-                            // Category: playAndRecord is required to route to the receiver (top speaker)
-                            // Mode: voiceChat optimizes for speech and defaults to receiver
-                            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [])
-                        } else {
-                            // SPEAKER MODE
-                            // Category: playback is standard for media
-                            // Mode: default
-                            // Options: defaultToSpeaker ensures it comes out the bottom
-                            try session.setCategory(.playback, mode: .default, options: .defaultToSpeaker)
-                        }
-
-                        try session.setActive(true)
-                    }
-                } catch {
-                    result(FlutterError(code: Constants.audioWaveforms, message: "Couldn't set audio session.", details: error.localizedDescription))
-                    return
-                }
+                result(true)
 
             } catch {
                 result(FlutterError(code: Constants.audioWaveforms, message: "Failed to prepare player", details: error.localizedDescription))
                 return
             }
-            player?.enableRate = true
-            player?.rate = 1.0
-            player?.prepareToPlay()
-            player?.volume = Float(volume ?? 1.0)
-            result(true)
         } else {
             result(FlutterError(code: Constants.audioWaveforms, message: "Audio file path can't be empty or null", details: nil))
         }
