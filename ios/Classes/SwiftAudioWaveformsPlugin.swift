@@ -48,6 +48,9 @@ public class SwiftAudioWaveformsPlugin: NSObject, FlutterPlugin {
             case Constants.checkPermission:
                 audioRecorder.checkHasPermission(result)
                 break
+            case Constants.checkSpeechPermission:
+                audioRecorder.checkSpeechPermission(result)
+                break
             case Constants.preparePlayer:
                 let key = args?[Constants.playerKey] as? String
                 if(key != nil){
