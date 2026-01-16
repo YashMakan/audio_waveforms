@@ -59,4 +59,8 @@ class Constants {
   static const String normalisedRms = 'normalisedRms';
   static const String bytes = 'bytes';
   static const String audioOutput = "audioOutput";
+  static const String enableSpeechToText = 'enableSpeechToText';
+  static const String resultTranscript = 'transcript';
+  static const String onTranscriptUpdate = 'onTranscriptUpdate';
+  static const String checkSpeechPermission = 'checkSpeechPermission';
 }

@@ -10,11 +10,13 @@ class RecorderSettings {
   /// [iosEncoderSettings] - Specifies encoder settings for iOS devices.
   /// [sampleRate] - Defines the sampling rate for audio recording (default: 44100 Hz).
   /// [bitRate] - Specifies the bit rate for encoding audio (optional).
+  /// [enableSpeechToText] - Enable real-time speech-to-text transcription (iOS only).
   const RecorderSettings({
     this.androidEncoderSettings = const AndroidEncoderSettings(),
     this.iosEncoderSettings = const IosEncoderSetting(),
     this.sampleRate = 44100,
     this.bitRate = 128000,
+    this.enableSpeechToText = false,
   });
 
   /// Encoder settings for Android devices.
@@ -30,6 +32,10 @@ class RecorderSettings {
   /// Bit rate for encoding audio in bits per second (bps).
   /// Higher values provide better quality but larger file sizes.
   final int bitRate;
+
+  /// Enable speech-to-text transcription during recording (iOS only).
+  /// When enabled, provides real-time transcription with word-level timing.
+  final bool enableSpeechToText;
 
   /// Converts the RecorderSettings instance to a JSON map for iOS.
   Map<String, dynamic> iosToJson({
@@ -47,14 +53,33 @@ class RecorderSettings {
         Constants.linearPCMBitDepth: iosEncoderSettings.linearPCMBitDepth,
         Constants.linearPCMIsBigEndian: iosEncoderSettings.linearPCMIsBigEndian,
         Constants.linearPCMIsFloat: iosEncoderSettings.linearPCMIsFloat,
+        Constants.enableSpeechToText: enableSpeechToText,  // Add this line
       };
 
   /// Converts the RecorderSettings instance to a JSON map for Android.
   Map<String, dynamic> androidToJson({String? path}) => {
-        Constants.path: path,
-        Constants.encoder:
-            androidEncoderSettings.androidEncoder.toNativeFormat(),
-        Constants.sampleRate: sampleRate,
-        Constants.bitRate: bitRate,
-      };
+    Constants.path: path,
+    Constants.encoder:
+    androidEncoderSettings.androidEncoder.toNativeFormat(),
+    Constants.sampleRate: sampleRate,
+    Constants.bitRate: bitRate,
+  };
+
+  /// Creates a copy of RecorderSettings with updated values.
+  RecorderSettings copyWith({
+    AndroidEncoderSettings? androidEncoderSettings,
+    IosEncoderSetting? iosEncoderSettings,
+    int? sampleRate,
+    int? bitRate,
+    bool? enableSpeechToText,
+  }) {
+    return RecorderSettings(
+      androidEncoderSettings:
+      androidEncoderSettings ?? this.androidEncoderSettings,
+      iosEncoderSettings: iosEncoderSettings ?? this.iosEncoderSettings,
+      sampleRate: sampleRate ?? this.sampleRate,
+      bitRate: bitRate ?? this.bitRate,
+      enableSpeechToText: enableSpeechToText ?? this.enableSpeechToText,
+    );
+  }
 }

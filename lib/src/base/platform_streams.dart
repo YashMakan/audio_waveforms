@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import '../../audio_waveforms.dart';
+import '../models/transcript.dart';
 import 'player_identifier.dart';
 
 ///This class should be used for any type of native streams.
@@ -12,6 +13,13 @@ class PlatformStreams {
   ///the key to identify. it is a [Unique] key created along with
   ///PlayerController.
   final Map<String, PlayerController> playerControllerFactory = {};
+
+  final _transcriptController = StreamController<Transcript>.broadcast();
+  Stream<Transcript> get transcriptStream => _transcriptController.stream;
+
+  void addTranscriptEvent(Transcript transcript) {
+    _transcriptController.add(transcript);
+  }
 
   static PlatformStreams instance = PlatformStreams._();
 
@@ -108,6 +116,7 @@ class PlatformStreams {
   }
 
   void dispose() {
+    _transcriptController.close();
     _currentDurationController.close();
     _playerStateController.close();
     _extractedWaveformDataController.close();

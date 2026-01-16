@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../models/transcript.dart';
 import '/src/base/utils.dart';
 import '../base/constants.dart';
 import '../base/platform_streams.dart';
@@ -118,6 +119,11 @@ class RecorderController extends ChangeNotifier {
 
   StreamSubscription? _amplitudeStreamSubscription;
 
+  Transcript? _currentTranscript;
+  Transcript? get currentTranscript => _currentTranscript;
+
+  StreamSubscription<Transcript>? _transcriptSubscription;
+
   /// A class having controls for recording audio and other useful handlers.
   RecorderController() {
     if (!_platformStream.isInitialised) {
@@ -165,10 +171,11 @@ class RecorderController extends ChangeNotifier {
   /// this function is called then it will re-initialise the recorder.
   Future<void> record({
     String? path,
+    bool enableSpeechToText = false,
     RecorderSettings recorderSettings = const RecorderSettings(),
   }) async {
     if (!_recorderState.isRecording) {
-      await checkPermission();
+      await checkPermission(enableSpeechToText);
       if (_hasPermission) {
         if (Platform.isAndroid && _recorderState.isStopped) {
           await _initRecorder(
@@ -188,6 +195,15 @@ class RecorderController extends ChangeNotifier {
           return;
         }
         if (Platform.isIOS) {
+          // Subscribe to transcript updates
+          if (enableSpeechToText) {
+            _transcriptSubscription = PlatformStreams.instance.transcriptStream.listen(
+                  (transcript) {
+                _currentTranscript = transcript;
+                notifyListeners();
+              },
+            );
+          }
           _setRecorderState(RecorderState.initialized);
         }
         if (_recorderState.isInitialized) {
@@ -236,7 +252,16 @@ class RecorderController extends ChangeNotifier {
   /// during initial set up.
   ///
   /// This method is also called during [record].
-  Future<bool> checkPermission() async {
+  Future<bool> checkPermission(bool enableSpeechToText) async {
+    // Request speech permission if STT is enabled
+    if (enableSpeechToText && Platform.isIOS) {
+      final hasSpeechPermission =
+      await AudioWaveformsInterface.instance.checkSpeechPermission();
+      if (!hasSpeechPermission) {
+        debugPrint('Speech recognition permission not granted');
+        return false;
+      }
+    }
     final result = await AudioWaveformsInterface.instance.checkPermission();
     if (result) {
       _hasPermission = result;
@@ -270,22 +295,43 @@ class RecorderController extends ChangeNotifier {
   /// When [callReset] is set to false it will require calling [reset] function
   /// manually else it will start showing waveforms from same place where it
   /// left of for previous recording.
-  Future<String?> stop([bool callReset = true]) async {
+  Future<RecordingResult?> stop([bool callReset = true]) async {
     if (_recorderState.isRecording || _recorderState.isPaused) {
       final audioInfo = await AudioWaveformsInterface.instance.stop();
       _isRecording = false;
       _timer?.cancel();
       _recorderTimer?.cancel();
-      if (audioInfo[Constants.resultDuration] != null) {
-        final duration = audioInfo[Constants.resultDuration];
 
-        _recordedDuration = Duration(milliseconds: duration);
+      // Cancel transcript subscription
+      await _transcriptSubscription?.cancel();
+      _transcriptSubscription = null;
+
+      Duration? duration;
+      if (audioInfo[Constants.resultDuration] != null) {
+        final durationMs = audioInfo[Constants.resultDuration];
+        duration = Duration(milliseconds: durationMs);
+        _recordedDuration = duration;
         _recordedFileDurationController.add(recordedDuration);
       }
+
       _elapsedDuration = Duration.zero;
       _setRecorderState(RecorderState.stopped);
+
+      // Extract transcript if available
+      Transcript? finalTranscript;
+      if (audioInfo[Constants.resultTranscript] != null) {
+        finalTranscript = Transcript.fromJson(
+          audioInfo[Constants.resultTranscript] as Map<String, dynamic>,
+        );
+      }
+
       if (callReset) reset();
-      return audioInfo[Constants.resultFilePath];
+
+      return RecordingResult(
+        path: audioInfo[Constants.resultFilePath] as String?,
+        duration: duration,
+        transcript: finalTranscript,
+      );
     }
 
     notifyListeners();
@@ -371,4 +417,16 @@ class RecorderController extends ChangeNotifier {
     _isDisposed = true;
     super.dispose();
   }
+}
+
+class RecordingResult {
+  final String? path;
+  final Duration? duration;
+  final Transcript? transcript;
+
+  const RecordingResult({
+    this.path,
+    this.duration,
+    this.transcript,
+  });
 }
