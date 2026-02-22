@@ -256,11 +256,13 @@ class AudioWaveformsInterface {
           }
           break;
         case Constants.onTranscriptUpdate:
-          final transcriptData = call.arguments as Map<Object?, Object?>;
-          final transcript = Transcript.fromJson(
-            transcriptData.cast<String, dynamic>(),
-          );
-          instance.addTranscriptEvent(transcript);
+          final transcriptData = call.arguments;
+          if (transcriptData is Map) {
+            final transcript = Transcript.fromJson(
+              Map<String, dynamic>.from(transcriptData),
+            );
+            instance.addTranscriptEvent(transcript);
+          }
           break;
       }
     });

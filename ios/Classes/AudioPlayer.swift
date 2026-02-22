@@ -1,5 +1,4 @@
 import Foundation
-
 import AVKit
 
 class AudioPlayer: NSObject, AVAudioPlayerDelegate {
@@ -12,17 +11,25 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
     var plugin: SwiftAudioWaveformsPlugin
     var playerKey: String
     var flutterChannel: FlutterMethodChannel
-    
+
+    // Store session configuration to apply on play
+    private var shouldOverrideSession: Bool = false
+    private var audioOutputType: Int = 0
 
     init(plugin: SwiftAudioWaveformsPlugin, playerKey: String, channel: FlutterMethodChannel) {
         self.plugin = plugin
         self.playerKey = playerKey
         flutterChannel = channel
     }
-    
+
     func preparePlayer(path: String?, volume: Double?, updateFrequency: Int?, result: @escaping FlutterResult, overrideAudioSession : Bool, audioOutput: Int?) {
         if(!(path ?? "").isEmpty) {
             self.updateFrequency = updateFrequency ?? 200
+
+            // Store configuration for later use in startPlyer
+            self.shouldOverrideSession = overrideAudioSession
+            self.audioOutputType = audioOutput ?? 0
+
             let audioUrl = URL.init(string: path!)
             if(audioUrl == nil){
                 result(FlutterError(code: Constants.audioWaveforms, message: "Failed to initialise Url from provided audio file", details: "If path contains `file://` try removing it"))
@@ -30,29 +37,12 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
             }
 
             do {
-                // 1. SETUP SESSION FIRST
-                if overrideAudioSession {
-                    let session = AVAudioSession.sharedInstance()
-                    let outputType = audioOutput ?? 0
-
-                    if outputType == 1 {
-                        // EARPIECE MODE
-                        // playAndRecord is required for earpiece, but we must allow Bluetooth to avoid cutting off headphones
-                        try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth])
-                    } else {
-                        // SPEAKER MODE
-                        try session.setCategory(.playback, mode: .default, options: .defaultToSpeaker)
-                    }
-
-                    // Activate session BEFORE creating the player
-                    try session.setActive(true)
-                }
-
-                // 2. STOP PREVIOUS PLAYER
+                // STOP PREVIOUS PLAYER
                 stopPlayer()
                 player = nil
 
-                // 3. INITIALIZE PLAYER (Now it picks up the correct session settings)
+                // INITIALIZE PLAYER
+                // We do NOT set the category here anymore to prevent hijacking audio on list render.
                 player = try AVAudioPlayer(contentsOf: audioUrl!)
 
                 player?.enableRate = true
@@ -70,7 +60,7 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
             result(FlutterError(code: Constants.audioWaveforms, message: "Audio file path can't be empty or null", details: nil))
         }
     }
-    
+
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer,successfully flag: Bool) {
         var finishType = 2
 
@@ -91,10 +81,8 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
             stopListening()
             self.player = nil
             finishType = 2
-
-
         }
-        
+
         plugin.flutterChannel.invokeMethod(Constants.onDidFinishPlayingAudio, arguments: [
             Constants.finishType: finishType,
             Constants.playerKey: playerKey])
@@ -102,6 +90,25 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
     }
 
     func startPlyer(result: @escaping FlutterResult) {
+        // APPLY SESSION CONFIGURATION HERE (Just-in-time)
+        if self.shouldOverrideSession {
+            do {
+                let session = AVAudioSession.sharedInstance()
+
+                if self.audioOutputType == 1 {
+                    // EARPIECE MODE
+                    try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth])
+                } else {
+                    // SPEAKER MODE
+                    try session.setCategory(.playback, mode: .default, options: .defaultToSpeaker)
+                }
+
+                try session.setActive(true)
+            } catch {
+                print("AudioWaveforms: Failed to set audio session category: \(error)")
+            }
+        }
+
         player?.play()
         player?.delegate = self
         startListening()

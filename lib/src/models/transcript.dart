@@ -16,9 +16,9 @@ class Word {
   };
 
   factory Word.fromJson(Map<String, dynamic> json) => Word(
-    text: json['text'] as String,
-    startTime: Duration(milliseconds: json['start_time_ms'] as int),
-    endTime: Duration(milliseconds: json['end_time_ms'] as int),
+    text: json['word'] as String,
+    startTime: Duration(milliseconds: (json['start'] as double).toInt()),
+    endTime: Duration(milliseconds: (json['end'] as double).toInt()),
   );
 }
 
@@ -36,10 +36,17 @@ class Transcript {
     'words': words.map((w) => w.toJson()).toList(),
   };
 
-  factory Transcript.fromJson(Map<String, dynamic> json) => Transcript(
-    fullText: json['full_text'] as String,
-    words: (json['words'] as List<dynamic>)
-        .map((w) => Word.fromJson(w as Map<String, dynamic>))
-        .toList(),
+  factory Transcript.fromJson(Map<String, dynamic> json) {
+    final wordsList = json['words'] as List<dynamic>;
+    return Transcript(
+      fullText: json['full_text'] as String? ?? '',
+      words: wordsList.map((w) {
+        // Convert each word map to Map<String, dynamic>
+        if (w is Map) {
+          return Word.fromJson(Map<String, dynamic>.from(w));
+        }
+        throw Exception('Invalid word format');
+      }).toList(),
   );
+  }
 }

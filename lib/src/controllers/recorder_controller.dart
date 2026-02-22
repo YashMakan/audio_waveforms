@@ -295,6 +295,7 @@ class RecorderController extends ChangeNotifier {
   /// When [callReset] is set to false it will require calling [reset] function
   /// manually else it will start showing waveforms from same place where it
   /// left of for previous recording.
+  /// Stop recording and return path with optional transcript
   Future<RecordingResult?> stop([bool callReset = true]) async {
     if (_recorderState.isRecording || _recorderState.isPaused) {
       final audioInfo = await AudioWaveformsInterface.instance.stop();
@@ -320,9 +321,16 @@ class RecorderController extends ChangeNotifier {
       // Extract transcript if available
       Transcript? finalTranscript;
       if (audioInfo[Constants.resultTranscript] != null) {
-        finalTranscript = Transcript.fromJson(
-          audioInfo[Constants.resultTranscript] as Map<String, dynamic>,
-        );
+        try {
+          final transcriptData = audioInfo[Constants.resultTranscript];
+          if (transcriptData is Map) {
+            finalTranscript = Transcript.fromJson(
+              Map<String, dynamic>.from(transcriptData),
+            );
+          }
+        } catch (e) {
+          debugPrint('Error parsing transcript: $e');
+        }
       }
 
       if (callReset) reset();
