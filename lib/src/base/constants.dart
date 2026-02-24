@@ -60,6 +60,7 @@ class Constants {
   static const String bytes = 'bytes';
   static const String audioOutput = "audioOutput";
   static const String enableSpeechToText = 'enableSpeechToText';
+  static const String enableVoiceProcessing = 'enableVoiceProcessing'; // NEW: Added this line
   static const String resultTranscript = 'transcript';
   static const String onTranscriptUpdate = 'onTranscriptUpdate';
   static const String checkSpeechPermission = 'checkSpeechPermission';

@@ -1,10 +1,3 @@
-//
-//  RecorderBytesStreamHandler.swift
-//  audio_waveforms
-//
-//  Created by Ujas Majithiya on 10/04/25.
-//
-
 import Foundation
 import AVFAudio
 import Accelerate
@@ -15,21 +8,44 @@ class RecorderBytesStreamEngine {
     private var flutterChannel: FlutterMethodChannel
     private var paused: Bool = false
 
+    // NEW: Callback to share the buffer with SFSpeechRecognizer
+    var onBufferAvailable: ((AVAudioPCMBuffer) -> Void)?
+
     init(channel: FlutterMethodChannel) {
         flutterChannel = channel
     }
 
-    func attach(result: @escaping FlutterResult) {
+    func attach(result: @escaping FlutterResult, enableVoiceProcessing: Bool = false) {
         let inputNode = audioEngine.inputNode
+
+        // Apply WWDC19 AVAudioEngine Voice Processing on the Input Node
+        if #available(iOS 13.0, *) {
+            if enableVoiceProcessing {
+                do {
+                    try inputNode.setVoiceProcessingEnabled(true)
+                } catch {
+                    print("AudioWaveforms: Error enabling voice processing on stream engine: \(error.localizedDescription)")
+                }
+            }
+        }
+
         audioFormat = inputNode.outputFormat(forBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: audioFormat) { (buffer, time) in
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: audioFormat) { [weak self] (buffer, time) in
+            guard let self = self else { return }
+
             if self.paused {
                 return
             }
+
+            // NEW: Share the buffer with the speech recognizer
+            self.onBufferAvailable?(buffer)
+
             if let (convertedBytes, normalizedRms) = self.convertToFlutterType(buffer) {
                 self.sendToFlutter(convertedBytes, normalizedRms: normalizedRms)
             }
         }
+
+        audioEngine.prepare() // Added to ensure formats are negotiated properly before starting
         do {
             try audioEngine.start()
         } catch {
@@ -44,6 +60,7 @@ class RecorderBytesStreamEngine {
     func detach() {
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
+        onBufferAvailable = nil // Clean up closure
     }
 
     private func convertToFlutterType(_ buffer: AVAudioPCMBuffer) -> (FlutterStandardTypedData, Double)? {
@@ -74,7 +91,6 @@ class RecorderBytesStreamEngine {
         }
         let convertedBuffer = FlutterStandardTypedData(bytes: byteBuffer)
         return (convertedBuffer, normalizedRms)
-
     }
 
     private func sendToFlutter(_ buffer: FlutterStandardTypedData, normalizedRms: Double) {

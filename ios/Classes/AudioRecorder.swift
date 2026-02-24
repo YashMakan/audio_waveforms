@@ -15,8 +15,8 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate, SFSpeechRecognize
     private var speechRecognizer: SFSpeechRecognizer?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
-    private var audioEngine: AVAudioEngine?
     private var enableSpeechToText: Bool = false
+    private var enableVoiceProcessing: Bool = false
     private var transcriptWords: [[String: Any]] = []
     private var fullTranscript: String = ""
 
@@ -48,6 +48,7 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate, SFSpeechRecognize
     func startRecording(_ result: @escaping FlutterResult, _ recordingSettings: RecordingSettings) {
         useLegacyNormalization = recordingSettings.useLegacy ?? false
         enableSpeechToText = recordingSettings.enableSpeechToText ?? false
+        enableVoiceProcessing = recordingSettings.enableVoiceProcessing ?? false
 
         var settings: [String: Any] = [
             AVFormatIDKey: getEncoder(recordingSettings.encoder ?? 0),
@@ -67,6 +68,7 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate, SFSpeechRecognize
         }
 
         let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetooth]
+
         if (recordingSettings.path == nil) {
             let documentDirectory = getDocumentDirectory(result)
             let date = Date()
@@ -80,7 +82,9 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate, SFSpeechRecognize
 
         do {
             if recordingSettings.overrideAudioSession {
-                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, options: options)
+                // Use .voiceChat mode if voice processing is enabled so AVAudioRecorder file captures reduced noise.
+                let mode: AVAudioSession.Mode = enableVoiceProcessing ? .voiceChat : .default
+                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: mode, options: options)
                 try AVAudioSession.sharedInstance().setActive(true)
             }
             audioUrl = URL(fileURLWithPath: self.path!)
@@ -94,7 +98,17 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate, SFSpeechRecognize
             audioRecorder?.delegate = self
             audioRecorder?.isMeteringEnabled = true
             audioRecorder?.record()
-            bytesStreamEngine.attach(result: result)
+
+            // NEW: Receive buffers seamlessly from the bytes stream engine
+            bytesStreamEngine.onBufferAvailable = { [weak self] buffer in
+                guard let self = self else { return }
+                if self.enableSpeechToText {
+                    self.recognitionRequest?.append(buffer)
+                }
+            }
+
+            // Attach stream engine
+            bytesStreamEngine.attach(result: result, enableVoiceProcessing: enableVoiceProcessing)
 
             // Start speech recognition if enabled
             if enableSpeechToText {
@@ -126,30 +140,6 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate, SFSpeechRecognize
         recognitionRequest.shouldReportPartialResults = true
         recognitionRequest.requiresOnDeviceRecognition = true // On-device recognition
 
-        // Initialize audio engine
-        audioEngine = AVAudioEngine()
-        guard let audioEngine = audioEngine else {
-            debugPrint("Unable to create audio engine")
-            return
-        }
-
-        let inputNode = audioEngine.inputNode
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
-
-        // Install tap on audio input
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
-            recognitionRequest.append(buffer)
-        }
-
-        audioEngine.prepare()
-
-        do {
-            try audioEngine.start()
-        } catch {
-            debugPrint("Audio engine failed to start: \(error.localizedDescription)")
-            return
-        }
-
         // Start recognition task
         recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { [weak self] result, error in
             guard let self = self else { return }
@@ -159,8 +149,6 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate, SFSpeechRecognize
             }
 
             if error != nil || result?.isFinal == true {
-                self.audioEngine?.stop()
-                self.audioEngine?.inputNode.removeTap(onBus: 0)
                 self.recognitionRequest = nil
                 self.recognitionTask = nil
             }
@@ -229,14 +217,11 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate, SFSpeechRecognize
     }
 
     private func stopSpeechRecognition() {
-        audioEngine?.stop()
-        audioEngine?.inputNode.removeTap(onBus: 0)
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
 
         recognitionRequest = nil
         recognitionTask = nil
-        audioEngine = nil
     }
 
     private func sendResult(_ result: @escaping FlutterResult, duration: Int) {
@@ -259,28 +244,12 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate, SFSpeechRecognize
     public func pauseRecording(_ result: @escaping FlutterResult) {
         audioRecorder?.pause()
         bytesStreamEngine.togglePause()
-
-        // Pause speech recognition
-        if enableSpeechToText {
-            audioEngine?.pause()
-        }
-
         result(false)
     }
 
     public func resumeRecording(_ result: @escaping FlutterResult) {
         audioRecorder?.record()
         bytesStreamEngine.togglePause()
-
-        // Resume speech recognition
-        if enableSpeechToText {
-            do {
-                try audioEngine?.start()
-            } catch {
-                debugPrint("Failed to resume audio engine: \(error.localizedDescription)")
-            }
-        }
-
         result(true)
     }
 

@@ -1,10 +1,3 @@
-//
-//  RecordingSettings.swift
-//  audio_waveforms
-//
-//  Created by Manoj Padiya on 30/12/24.
-//
-
 import Foundation
 
 struct RecordingSettings {
@@ -19,7 +12,8 @@ struct RecordingSettings {
     var linearPCMIsBigEndian : Bool
     var linearPCMIsFloat : Bool
     var enableSpeechToText: Bool?
-    
+    var enableVoiceProcessing: Bool? // NEW
+
     static func fromJson(_ json: [String: Any]) -> RecordingSettings {
         let path = json[Constants.path] as? String
         let encoder = json[Constants.encoder] as? Int
@@ -31,7 +25,8 @@ struct RecordingSettings {
         let linearPCMBitDepth = json[Constants.linearPCMBitDepth] as? Int ?? 16
         let linearPCMIsBigEndian = json[Constants.linearPCMIsBigEndian] as? Bool ?? false
         let linearPCMIsFloat = json[Constants.linearPCMIsFloat] as? Bool ?? false
-        let enableSpeechToText = json[Constants.enableSpeechToText] as? Bool ?? false  // Add this line
+        let enableSpeechToText = json[Constants.enableSpeechToText] as? Bool ?? false
+        let enableVoiceProcessing = json[Constants.enableVoiceProcessing] as? Bool ?? false // NEW
 
         return RecordingSettings(
             path: path,
@@ -44,7 +39,8 @@ struct RecordingSettings {
             linearPCMBitDepth: linearPCMBitDepth,
             linearPCMIsBigEndian: linearPCMIsBigEndian,
             linearPCMIsFloat: linearPCMIsFloat,
-            enableSpeechToText: enableSpeechToText  // Add this line
+            enableSpeechToText: enableSpeechToText,
+            enableVoiceProcessing: enableVoiceProcessing // NEW
         )
     }
 }

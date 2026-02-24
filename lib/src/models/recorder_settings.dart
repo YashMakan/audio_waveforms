@@ -17,6 +17,7 @@ class RecorderSettings {
     this.sampleRate = 44100,
     this.bitRate = 128000,
     this.enableSpeechToText = false,
+    this.enableVoiceProcessing = true, // NEW: Set to true by default
   });
 
   /// Encoder settings for Android devices.
@@ -37,6 +38,9 @@ class RecorderSettings {
   /// When enabled, provides real-time transcription with word-level timing.
   final bool enableSpeechToText;
 
+  /// Enable hardware-level noise reduction and echo cancellation.
+  final bool enableVoiceProcessing; // NEW: Added variable
+
   /// Converts the RecorderSettings instance to a JSON map for iOS.
   Map<String, dynamic> iosToJson({
     String? path,
@@ -54,6 +58,7 @@ class RecorderSettings {
         Constants.linearPCMIsBigEndian: iosEncoderSettings.linearPCMIsBigEndian,
         Constants.linearPCMIsFloat: iosEncoderSettings.linearPCMIsFloat,
         Constants.enableSpeechToText: enableSpeechToText,  // Add this line
+        Constants.enableVoiceProcessing: enableVoiceProcessing, // NEW: map to JSON
       };
 
   /// Converts the RecorderSettings instance to a JSON map for Android.
@@ -72,6 +77,7 @@ class RecorderSettings {
     int? sampleRate,
     int? bitRate,
     bool? enableSpeechToText,
+    bool? enableVoiceProcessing, // NEW: added to copyWith
   }) {
     return RecorderSettings(
       androidEncoderSettings:
@@ -80,6 +86,7 @@ class RecorderSettings {
       sampleRate: sampleRate ?? this.sampleRate,
       bitRate: bitRate ?? this.bitRate,
       enableSpeechToText: enableSpeechToText ?? this.enableSpeechToText,
+      enableVoiceProcessing: enableVoiceProcessing ?? this.enableVoiceProcessing, // NEW: passed to constructor
     );
   }
 }

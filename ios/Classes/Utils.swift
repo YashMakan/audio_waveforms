@@ -18,6 +18,7 @@ struct Constants {
     static let fileNameFormat = "YY-MM-dd-HH-mm-ss"
     static let resumeRecording = "resumeRecording"
     static let enableSpeechToText = "enableSpeechToText"
+    static let enableVoiceProcessing = "enableVoiceProcessing"
     static let resultTranscript = "transcript"
     static let onTranscriptUpdate = "onTranscriptUpdate"
     static let checkSpeechPermission = "checkSpeechPermission"
@@ -76,7 +77,6 @@ struct Constants {
     static let bytes = "bytes"
     static let normalisedRms = "normalisedRms"
 }
-
 
 /// Creates an 2D array of floats
 public typealias FloatChannelData = [[Float]]
